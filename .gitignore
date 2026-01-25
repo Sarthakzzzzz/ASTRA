@@ -1,6 +1,9 @@
+# Security
 .env
 .env.local
 .env.*.local
+
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -37,3 +40,7 @@ venv.bak/
 *.swo
 *~
 .ipynb_checkpoints/
+*.pyc
+
+# ASTRA Output
+orchestrator/output/

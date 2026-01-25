@@ -1,179 +1,158 @@
-# ASTRA - Vulnerability Orchestrator
+# ASTRA - AI-Powered Vulnerability Orchestrator
 
-**ASTRA** is an intelligent vulnerability scanning orchestrator designed to automate and enhance the security testing process.  
+**ASTRA** is an AI-powered, adaptive vulnerability scanning orchestrator designed to automate and enhance the security testing process. It intelligently chains security tools, adapts its strategy based on real-time findings, and uses a Gemini-powered AI agent to reason about vulnerabilities and recommend next steps.
+
+---
+
+## 🌐 Live Demo
+
+A live demo of the ASTRA dashboard is available here:
+
+**[https://d97dfd578485.ngrok-free.app/](https://d97dfd578485.ngrok-free.app/)**
+
+---
+
 It features a sleek, real-time Streamlit dashboard and supports two distinct scanning modes:
 
-- **Static Mode**: Executes a predictable, repeatable sequence of tools.  
-- **Dynamic Mode**: Adapts intelligently as it scans, evolving based on discovered vulnerabilities and assets.
+- **Dynamic Mode**: Leverages an AI Planning Agent to analyze findings and intelligently decide which tools to run next. It adapts its attack strategy in real-time based on discovered assets and vulnerabilities.
+- **Static Mode**: Executes a predictable, user-defined sequence of security tools.
 
 ---
 
 ## 🚀 Key Features
 
-### 🔁 Dual Scan Modes
-
-- **Static Mode**: Executes a predefined, fixed sequence of security tools. Ideal for consistent, repeatable scans.
-- **Dynamic Mode**: Uses a real-time rules engine that adapts the scan strategy based on discovered assets and vulnerabilities.
+### 🧠 AI-Powered Dynamic Scanning
+- **AI Planning Agent**: Uses the Gemini 1.5 Flash API to analyze initial scan results and create a dynamic attack plan.
+- **Adaptive Strategy**: Intelligently chains tools based on open ports, identified services, and discovered vulnerabilities.
+- **Finding Enrichment**: Automatically enriches findings with risk levels and capabilities to inform the AI's decision-making process.
+- **ExploitDB Integration**: Searches ExploitDB for known exploits related to discovered services to prioritize high-risk targets.
 
 ### 📺 Live Web Dashboard
+- **Real-time Log Streaming**: Monitor the scan's progress live.
+- **Live Discovery of Findings**: See vulnerabilities and results as they are found.
+- **Interactive Configuration**: Easily configure and launch scans from a user-friendly UI.
+- **Built with Streamlit**: A clean, modern, and responsive interface.
 
-- Real-time log streaming
-- Live discovery of findings
-- Interactive configuration panel  
-- Built with a clean, dark-themed Streamlit UI
-
-### ⚡ Concurrent Execution
-
-- Runs multiple tools in parallel using thread pools for faster and more efficient orchestration.
-
-### 🧩 Modular & Extensible Architecture
-
-- Clear separation of concerns (`engine`, `parsers`, `runner`, `rules`)
-- Easily add new tools, parsers, or dynamic logic.
-
-### 📊 Structured Findings
-
-- Automatically parses and normalizes tool outputs into a standardized format for easy analysis and visualization.
+### ⚡ Concurrent & Modular
+- **Concurrent Execution**: Runs multiple tools in parallel for faster and more efficient scanning.
+- **Modular Architecture**: Easily extendable with new tools, parsers, and rules.
 
 ---
 
+## 🔬 How Dynamic Mode Works
 
+1.  **Initial Scan**: ASTRA begins with a set of baseline enumeration tools (e.g., `nmap`, `whatweb`, `nuclei`).
+2.  **Finding Enrichment**: The raw output from these tools is parsed into a structured format and enriched with metadata, such as risk level and capability (e.g., `web_server`, `database_server`).
+3.  **AI Analysis**: The enriched findings are sent to the Gemini-powered AI Planning Agent.
+4.  **Tool Recommendation**: The AI agent analyzes the findings, reasons about potential attack vectors, and recommends the next best tools to run from its registry.
+5.  **Iterative Scanning**: ASTRA executes the recommended tools, collects the new findings, and repeats the cycle.
+6.  **Completion**: The scan concludes when the AI agent no longer recommends new tools, or the maximum number of iterations is reached.
+
+---
 
 ## Directory Structure
 
-    ├── orchestrator
-    │   ├── core
-    │   │   ├── dependencies.py
-    │   │   ├── engine.py
-    │   │   ├── findings.py
-    │   │   ├── parsers.py
-    │   │   ├── registry.py
-    │   │   ├── rules_engine.py
-    │   │   ├── runner.py
-    │   │   ├── services.py
-    │   │   └── utils.py
-    │   ├── logs
-    │   ├── main.py
-    │   ├── output
-    │   │   └── raw
-    │   └── rules
-    │       ├── network.yaml
-    │       ├── vulnerabilities.yaml
-    │       └── web.yaml
-    └── streamlit_app.py
-
---- 
-
-## 🏗️ Project Architecture
-
-ASTRA operates on a modular, pipeline-based architecture.
-
-
-- UI (Streamlit): Captures user input (target, mode) and visualizes live logs and final reports.
-
-- Engine: The central coordinator. It receives the scan request and, depending on the mode, either follows a static plan or consults the Rules Engine.
-
-- Rules Engine: In Dynamic mode, this component compares active findings against its "rulebook" (YAML files) to decide if new scans should be triggered.
-
-- Parsers: Translates the raw text/XML/JSON output from various tools into a standardized StandardFinding object that the engine can understand.
-
-- Runner: Securely executes the command-line tools and streams their output back to the engine.
+```
+├── orchestrator
+│   ├── core
+│   │   ├── ai
+│   │   │   ├── attack_path.py
+│   │   │   ├── client.py
+│   │   │   ├── exploitdb.py
+│   │   │   └── planning_agent.py
+│   │   ├── extractors
+│   │   ├── __init__.py
+│   │   ├── ai_agent.py
+│   │   ├── capabilities.py
+│   │   ├── dependencies.py
+│   │   ├── engine.py
+│   │   ├── findings.py
+│   │   ├── graph.py
+│   │   ├── parsers.py
+│   │   ├── planner.py
+│   │   ├── registry.py
+│   │   ├── rules_engine.py
+│   │   ├── rules_loader.py
+│   │   ├── runner.py
+│   │   └── utils.py
+│   ├── __init__.py
+│   ├── main.py
+│   └── rules
+│       ├── auth.yaml
+│       ├── database.yaml
+│       ├── network.yaml
+│       ├── vulnerabilities.yaml
+│       └── web.yaml
+├── requirements.txt
+└── streamlit_app.py
+```
 
 ---
 
-## Tech Stack
-- Backend: Python 3.8+
+## 🛠️ Tech Stack
 
-- Frontend: Streamlit
+-   **Backend**: Python 3.8+
+-   **AI**: Google Gemini 1.5 Flash
+-   **Frontend**: Streamlit
+-   **Configuration**: YAML
+-   **Core Libraries**: `google-generativeai`, `concurrent.futures`, `pathlib`
 
-- Configuration: YAML
-
-- Core Libraries: concurrent.futures, pathlib
 ---
 
 ## 🧪 Getting Started
 
 ### 1. Prerequisites
 
-ASTRA is a wrapper around popular CLI-based security tools.  
-Make sure these tools are installed and available in your system's `PATH`.
+ASTRA requires a Google Gemini API key and a set of common security tools.
+
+**A. Configure Gemini API Key:**
+
+1.  Obtain an API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
+2.  Create a `.env` file in the root of the project.
+3.  Add your API key to the `.env` file:
+    ```
+    GEMINI_API_KEY=your_api_key_here
+    ```
+
+**B. Install Required Tools:**
+
+ASTRA is a wrapper around popular CLI-based security tools. Make sure these tools are installed and available in your system's `PATH`.
 
 For Debian/Ubuntu (e.g., Kali Linux):
-
 ```bash
-sudo apt update && sudo apt install -y nmap whatweb nuclei wpscan joomscan enum4linux sqlmap python3-pip
+sudo apt update && sudo apt install -y nmap whatweb nuclei nikto wpscan joomscan enum4linux sqlmap
 ```
-
 
 ### 2. Installation
-First, clone the repository to your local machine:
+
+First, clone the repository and install the required Python libraries:
+
 ```bash
-    git clone [https://github.com/DBS01107/ASTRA.git](https://github.com/DBS01107/ASTRA.git)
-    cd ASTRA
+git clone https://github.com/Sarthakzzzzz/ASTRA.git
+cd ASTRA
+pip install -r requirements.txt
 ```
-
-
-Next, install the required Python libraries:
-```bash
-    pip install -r requirements.txt
-```
-
 
 ### 3. Usage
-You can run ASTRA in two ways: via the command line for automation or through the user-friendly web interface.
 
-- Command-Line Interface (CLI)
-    Navigate to the project's root directory (ASTRA/) to run the orchestrator.
+You can run ASTRA via the command line or through the user-friendly web interface.
 
-- Running a Dynamic Scan (Recommended):
+#### Command-Line Interface (CLI)
+
+Run a **dynamic scan** (recommended):
 ```bash
-    python3 orchestrator/orchestrator.py scanme.nmap.org --mode dynamic
-```
-- Running a Static Scan:
-```bash
-python3 orchestrator/orchestrator.py scanme.nmap.org --mode static --enable nmap,whatweb
+python3 orchestrator/main.py scanme.nmap.org --mode dynamic
 ```
 
-- Web Dashboard
+Run a **static scan** with specific tools:
+```bash
+python3 orchestrator/main.py scanme.nmap.org --mode static --enable nmap,whatweb,nikto
+```
+
+#### Web Dashboard
+
 Launch the Streamlit web application:
 ```bash
 streamlit run streamlit_app.py
 ```
-
-This will automatically open the ASTRA Dashboard in your web browser.
-
-
----
-
-
-## Project Roadmap
-This project is structured to align with the Smart India Hackathon (SIH) problem statement "Centralized Vulnerability Detection and Intelligent Query Interface."
-
-### Phase 1: Intelligent Scanning GUI
-
-- Develop a responsive web GUI (streamlit_app.py).
-
-- Integrate core enumeration tools (Nmap, WhatWeb, Nuclei, etc.).
-
-- Implement an adaptive engine to intelligently chain tools.
-
-- Generate raw, tool-specific output.
-
-### Phase 2: Aggregation & Attack Path Generation
-
-- Develop a reporting module to aggregate all raw outputs into a single, structured report.
-
-- Normalize findings into a consistent format (CVE IDs, CVSS scores).
-
-- Automatically generate the attack path based on the chain of triggered rules from the dynamic scan.
-
-- Enrich findings with data from external threat intelligence sources (NVD, ExploitDB).
-
-### Phase 3: RAG-Based AI Assistant
-
-- Integrate a context-aware RAG chatbot.
-
-- Allow natural language queries on vulnerabilities and attack paths.
-
-- Deliver exploit steps and remediation guidance based on the consolidated report.
-
+This will open the ASTRA Dashboard in your web browser, where you can configure and run scans interactively.
