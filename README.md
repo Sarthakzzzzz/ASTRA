@@ -4,13 +4,7 @@
 
 ---
 
-## 🌐 Live Demo
 
-A live demo of the ASTRA dashboard is available here:
-
-**[https://d97dfd578485.ngrok-free.app/](https://d97dfd578485.ngrok-free.app/)**
-
-([Note: Local setup required for full functionality described below])
 
 ---
 
@@ -102,10 +96,18 @@ The easiest way to run ASTRA is with Docker, which automatically installs all se
     git clone https://github.com/Sarthakzzzzz/ASTRA.git
     cd ASTRA
     ```
-2.  Set up your API Key:
+2.  Configure environment variables:
     ```bash
-    echo "GEMINI_API_KEY=your_actual_key_here" > .env
+    # Copy the example and edit with your keys
+    cp .env.example .env
     ```
+    
+    **Required:**
+    - `GOOGLE_API_KEY` - Your Google Gemini API key ([Get it here](https://aistudio.google.com/app/apikey))
+    
+    **Optional:**
+    - `NVD_API_KEY` - For enhanced CVE data ([Get it here](https://nvd.nist.gov/developers/request-an-api-key))
+    - `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` - For persistent graph storage (defaults to in-memory)
 3.  Run with Docker:
     ```bash
     sudo docker compose up --build
