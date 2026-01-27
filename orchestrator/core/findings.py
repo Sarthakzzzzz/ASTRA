@@ -29,7 +29,13 @@ class StandardFinding:
     port: Optional[int] = None
     service: Optional[str] = None
     version: Optional[str] = None
+    version: Optional[str] = None
     os: Optional[str] = None
+    
+    # Vulnerability specifics
+    cve_id: Optional[str] = None
+    cvss_score: Optional[float] = None
+    cvss_vector: Optional[str] = None
 
     details: Dict[str, Any] = field(default_factory=dict)
 

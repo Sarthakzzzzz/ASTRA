@@ -14,7 +14,7 @@ def run_orchestrator(primary_target: str, enable_arg: str, concurrency: int, mod
     The main orchestration function. Yields log lines for real-time display.
     """
     sanitized_target = utils.sanitize_target(primary_target)
-    os.makedirs("output/raw", exist_ok=True)
+    os.makedirs("orchestrator/output/raw", exist_ok=True)
 
     # --- Initial Setup ---
     enabled_scanners = dependencies.resolve_enabled_scanners(enable_arg)
@@ -33,10 +33,12 @@ def run_orchestrator(primary_target: str, enable_arg: str, concurrency: int, mod
             dry_run
         )
     else:
-        yield from _run_static_mode(sanitized_target, enabled_scanners, concurrency, dry_run)
+        graph = AstraGraph()
+        graph.add_asset(sanitized_target)
+        yield from _run_static_mode(graph, sanitized_target, enabled_scanners, concurrency, dry_run)
 
 
-def _run_static_mode(target: str, enabled_scanners: list, concurrency: int, dry_run: bool):
+def _run_static_mode(graph, target: str, enabled_scanners: list, concurrency: int, dry_run: bool):
     """
     Runs a fixed, pre-calculated execution plan from start to finish.
     """
@@ -49,11 +51,16 @@ def _run_static_mode(target: str, enabled_scanners: list, concurrency: int, dry_
 
     for group in execution_groups:
         yield f"\n[~] Running group: {group}\n"
-        for result in _execute_group(group, target, master_findings_list, concurrency, dry_run):
+        for result in _execute_group(graph, group, target, master_findings_list, concurrency, dry_run):
             if isinstance(result, str):
                 yield result
             else:
                 master_findings_list.append(result)
+    
+    yield "\n" + "="*50 + "\n"
+    yield "[+] SCAN COMPLETE. All static groups finished.\n"
+    yield f"[+] Total findings collected: {len(master_findings_list)}\n"
+    yield "="*50 + "\n"
 
 
 def _run_dynamic_mode(graph, target: str, enabled_scanners: list, concurrency: int, dry_run: bool):
@@ -61,14 +68,18 @@ def _run_dynamic_mode(graph, target: str, enabled_scanners: list, concurrency: i
     Runs an adaptive scan with AI-driven tool recommendations.
     Iteratively executes scanners and uses AI to decide what to scan next.
     """
-    from .ai.planning_agent import analyze_dynamic_scan
+    # DIRECT GOOGLE ADK INTEGRATION - planning_agent removed
+    from google_adk.agent import ScanAgent
+    
+    # Initialize Google ADK Agent EARLY
+    scan_agent = ScanAgent()
 
     master_findings_list = []
     executed_tools = set()
     iteration = 0
     max_iterations = 3  # Prevent infinite loops
 
-    yield "[+] Starting dynamic AI-driven scan...\n"
+    yield "[+] Starting dynamic AI-driven scan (Incremental AI Analysis Enabled)...\n"
 
     # First iteration: Run initial scanners
     initial_groups = dependencies.build_execution_groups(enabled_scanners)
@@ -78,11 +89,32 @@ def _run_dynamic_mode(graph, target: str, enabled_scanners: list, concurrency: i
 
     for group in initial_groups:
         yield f"\n[~] Running initial group: {group}\n"
-        for result in _execute_group(group, target, master_findings_list, concurrency, dry_run):
+        
+        # Track tools completing in this group
+        tools_completed_in_group = set()
+        
+        for result in _execute_group(graph, group, target, master_findings_list, concurrency, dry_run):
             if isinstance(result, str):
                 yield result
+                # Detect tool completion message
+                if "Parsed" in result and "findings" in result:
+                    # Update AI Reasoning after a tool finishes
+                    # Extract tool name from log if possible, or just trigger update
+                    # To avoid spamming, we trigger update here
+                    try:
+                         # Lightweight update - get AI thoughts on current state
+                         # We do this non-blocking or just fire-and-wait-briefly
+                         # Since recommend_next_scans updates state, calling it is enough
+                         # But we only want to do it if we have meaningful findings
+                         if master_findings_list:
+                             yield f"[AI] Analyzing new findings from completed tool...\n"
+                             scan_agent.recommend_next_scans(master_findings_list, list(executed_tools))
+                    except Exception as e:
+                        yield f"[!] Minimal AI update failed: {e}\n"
+
             else:
                 master_findings_list.append(result)
+        
         executed_tools.update(group)
 
     # Iterative AI-driven scanning
@@ -98,10 +130,17 @@ def _run_dynamic_mode(graph, target: str, enabled_scanners: list, concurrency: i
         for risk, count in risk_counts.items():
             yield f"    - {risk}: {count}\n"
 
-        # Get AI recommendations for next tools
+        # Get AI recommendations DIRECTLY from Google ADK
         try:
-            yield "\n[AI] Calling AI agent to recommend next tools...\n"
-            recommendations = analyze_dynamic_scan(master_findings_list, list(executed_tools))
+            yield "\n[AI] Calling Google ADK Agent for scan recommendations...\n"
+            
+            # Get structured recommendations from Google ADK
+            recommendations = scan_agent.recommend_next_scans(
+                master_findings_list, 
+                list(executed_tools)
+            )
+            
+            yield f"[AI] Google ADK recommended {len(recommendations)} tools\n"
             
             if not recommendations:
                 yield "[AI] No additional tools recommended. Scan complete.\n"
@@ -115,25 +154,31 @@ def _run_dynamic_mode(graph, target: str, enabled_scanners: list, concurrency: i
 
             yield f"[AI] Executing {len(new_recommendations)} AI-recommended actions...\n"
 
-            # Execute the recommended tools with AI-specified commands
+            # Execute the recommended tools (Google ADK format: tool, target, reason)
             for rec in new_recommendations:
                 tool_name = rec.get("tool", "")
-                command = rec.get("command", "")
+                rec_target = rec.get("target", target)
+                reason = rec.get("reason", "AI recommendation")
                 
-                if not tool_name or not command:
+                if not tool_name:
                     continue
                 
-                yield f"[AI] Executing: {command}\n"
+                yield f"[AI] {reason}\n"
+                yield f"[AI] Running: {tool_name} on {rec_target}\n"
                 
-                # Run the custom command directly
-                for result in runner.run_command_direct(command, tool_name, target, dry_run):
-                    if isinstance(result, str):
-                        yield result
-                    else:
+                # Execute tool using standard flow
+                # For recommendations, we also want incremental updates
+                for result in _execute_group(graph, [tool_name], rec_target, master_findings_list, concurrency, dry_run):
+                    if hasattr(result, 'finding_type'):
+                        yield f"[+] [{result.source_tool}] Found: {result.finding_type} -> {result.finding_value}\n"
                         master_findings_list.append(result)
-                
-                executed_tools.add(tool_name)
+                    elif isinstance(result, str):
+                        yield result
+                        if "Parsed" in result:
+                             scan_agent.recommend_next_scans(master_findings_list, list(executed_tools))
 
+                executed_tools.add(tool_name)
+ 
         except Exception as e:
             import traceback
             yield f"[!] AI recommendation failed: {e}\n"
@@ -153,12 +198,10 @@ def _run_dynamic_mode(graph, target: str, enabled_scanners: list, concurrency: i
     if master_findings_list:
         try:
             yield "\n[AI] Generating comprehensive security analysis...\n"
-            ai_summary = analyze_dynamic_scan(master_findings_list, list(executed_tools), summary_mode=True)
-            if ai_summary and isinstance(ai_summary, dict):
-                summary_text = ai_summary.get('summary', 'No summary available')
-                yield f"\n[AI] === SECURITY ANALYSIS SUMMARY ===\n{summary_text}\n"
+            final_analysis = scan_agent.analyze_findings(master_findings_list)
+            yield f"\n[AI] === SECURITY ANALYSIS SUMMARY ===\n{final_analysis}\n"
         except Exception as e:
-            yield f"[!] AI summary generation failed: {e}\n"
+             yield f"[!] AI summary generation failed: {e}\n"
 
     if master_findings_list:
         # Log findings summary
@@ -185,10 +228,10 @@ def _run_dynamic_mode(graph, target: str, enabled_scanners: list, concurrency: i
                 yield f"              Target: {f.target} | Severity: {severity}\n"
 
 
-def _execute_group(group: list, target: str, master_findings: list, concurrency: int, dry_run: bool):
+def _execute_group(graph, group: list, target: str, master_findings: list, concurrency: int, dry_run: bool):
     """
     Helper function to execute a single group of tools and parse their results.
-    Yields log lines (str) and StandardFinding objects.
+    Yields log lines (str) and StandardFinding objects AS THEY COMPLETE.
     """
     tasks_to_run = []
 
@@ -214,30 +257,33 @@ def _execute_group(group: list, target: str, master_findings: list, concurrency:
             cmd_args = utils.command_builder(scanner_config, target, target, output_file)
             tasks_to_run.append({'tool': tool_name, 'cmd': cmd_args, 'url': target, 'file': output_file})
 
-    # 2. Execute commands concurrently
+    # 2. Execute commands concurrently AND PARSE IMMEDIATELY upon completion
     with ThreadPoolExecutor(max_workers=concurrency) as executor:
         future_to_task = {executor.submit(runner.run_command, task['cmd'], task['tool'], task['url'], dry_run): task for task in tasks_to_run}
 
         for future in as_completed(future_to_task):
             task = future_to_task[future]
             try:
+                # Yield logs from the tool execution FIRST
                 for line in future.result():
                     yield line
+                
+                # IMMEDIATELY Parse results for this completed task
+                yield f"[*] Parsing results for {task['tool']}\n"
+                parser_func = parsers.get_parser_for_tool(task['tool'])
+                if parser_func:
+                    try:
+                        # Pass the URL for context, needed by some parsers
+                        findings = parser_func(task['file'], task.get('url'))
+                        yield f"[+] [{task['tool']}] Parsed {len(findings)} findings\n"
+                        for finding in findings:
+                            # Add finding to graph database
+                            graph.add_finding(finding)
+                            yield finding  # Yield the structured finding object
+                    except Exception as e:
+                        yield f"[!] Error parsing output for {task['tool']} from {task['file']}: {e}\n"
+
             except Exception as e:
                 yield f"[!!!] ERROR in task '{task['tool']} on {task['url']}': {e}\n"
-
-    # 3. After all tools in the group finish, parse their results
-    yield f"[*] Parsing results for group: {group}\n"
-    for task in tasks_to_run:
-        parser_func = parsers.get_parser_for_tool(task['tool'])
-        if parser_func:
-            try:
-                # Pass the URL for context, needed by some parsers
-                findings = parser_func(task['file'], task.get('url'))
-                yield f"[+] [{task['tool']}] Parsed {len(findings)} findings\n"
-                for finding in findings:
-                    yield finding  # Yield the structured finding object
-            except Exception as e:
-                yield f"[!] Error parsing output for {task['tool']} from {task['file']}: {e}\n"
 
 

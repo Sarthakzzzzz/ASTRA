@@ -104,6 +104,50 @@ def parse_nmap_xml(file_path: str, target_context: Optional[str] = None) -> List
                             "version": version
                         }
                     ))
+                
+                # --- Fact 3: Vulnerabilities from scripts (e.g. vulners) ---
+                for script in port.findall("script"):
+                    if script.get("id") == "vulners":
+                        output = script.get("output", "")
+                        # Parse vulners text output
+                        # Format usually:
+                        #   cpe:/a:vendor:product:version: 
+                        #     CVE-YYYY-NNNN SC.ORE https://...
+                        # Logic to handle XML attribute normalization (where newlines become spaces)
+                        # Tokenize everything and look for CVE patterns
+                        tokens = output.split()
+                        for i, token in enumerate(tokens):
+                            if token.startswith("CVE-") or token.startswith("SSV-"):
+                                cve_id = token
+                                cvss_score = 0.0
+                                # Try to grab the next token as the score
+                                if i + 1 < len(tokens):
+                                    try:
+                                        cvss_score = float(tokens[i+1])
+                                    except ValueError:
+                                        pass
+                                
+                                findings.append(StandardFinding(
+                                    id=f"nmap_vuln_{addr}_{port_id}_{cve_id}",
+                                    source_tool="nmap",
+                                    target=addr,
+                                    finding_type="vulnerability",
+                                    finding_value=cve_id,
+                                    risk_level="exploit" if cvss_score >= 7.0 else "misconfig",
+                                    capability="exploit_available",
+                                    port=port_id,
+                                    service=service_name,
+                                    version=version,
+                                    cve_id=cve_id,
+                                    cvss_score=cvss_score,
+                                    details={
+                                        "service": service_name,
+                                        "product": product,
+                                        "version": version,
+                                        "cvss": cvss_score
+                                    }
+                                ))
+
 
     except (ET.ParseError, IOError) as e:
         print(f"[!] Error parsing Nmap XML file {file_path}: {e}")
@@ -248,19 +292,38 @@ def parse_nuclei_jsonl(file_path: str, target_context: Optional[str] = None) -> 
                 
                 risk_level = severity_to_risk.get(severity, "info")
                 
+                if "classification" in info:
+                    classification = info["classification"]
+                    cve_ids = classification.get("cve-id", [])
+                    cvss_score = classification.get("cvss-score", 0.0)
+                    cvss_metrics = classification.get("cvss-metrics", "")
+                else:
+                    cve_ids = []
+                    cvss_score = 0.0
+                    cvss_metrics = ""
+
+                # If multiple CVEs, pick the first one for the main ID, but store all in details
+                primary_cve = cve_ids[0] if cve_ids else None
+                
                 findings.append(StandardFinding(
                     id=f"nuclei_{template_id}_{line_num}",
                     source_tool="nuclei",
                     target=data.get("host"),
                     finding_type="vulnerability",
-                    finding_value=template_id,
+                    finding_value=primary_cve if primary_cve else template_id,
                     severity=severity,
                     capability=capability,
                     risk_level=risk_level,
+                    cve_id=primary_cve,
+                    cvss_score=float(cvss_score) if cvss_score else None,
+                    cvss_vector=cvss_metrics,
                     details={
                         "name": info.get("name"),
                         "severity": severity,
-                        "tags": info.get("tags", [])
+                        "tags": info.get("tags", []),
+                        "cve_ids": cve_ids,
+                        "cvss_score": cvss_score,
+                        "cvss_vector": cvss_metrics
                     }
                 ))
     except (json.JSONDecodeError, IOError) as e:
@@ -374,6 +437,39 @@ def parse_nikto_txt(file_path: str, target_context: Optional[str] = None) -> Lis
 
 
 # --------------------------------------------------------------------
+# 6. Enum4Linux Parser
+# --------------------------------------------------------------------
+def parse_enum4linux(file_path: str, target_context: Optional[str] = None) -> List[StandardFinding]:
+    """
+    Parses Enum4Linux text output.
+    Attempts to extract workgroup/domain info and user lists.
+    """
+    findings = []
+    # If the tool failed (exit code 1) the file might still exist with error output
+    if not os.path.exists(file_path):
+        return findings
+
+    try:
+        with open(file_path, 'r') as f:
+            content = f.read()
+            
+        target = target_context or "unknown"
+        
+        # Look for Workgroup/Domain
+        if "Got domain/workgroup name:" in content:
+            # Parse it out
+            pass # TODO: Regex extraction
+            
+        # For now, just a placeholder if it ran successfully
+        if "Enumerating Workgroup/Domain" in content:
+            pass
+
+    except Exception as e:
+        print(f"[!] Error parsing Enum4Linux: {e}")
+        
+    return findings
+
+# --------------------------------------------------------------------
 # 5. The Parser Dispatcher (The Brain's Librarian)
 # --------------------------------------------------------------------
 # This mapping allows the engine to dynamically select the correct parser.
@@ -382,7 +478,8 @@ PARSER_MAPPING: Dict[str, Callable] = {
     "whatweb": parse_whatweb_json,
     "nuclei": parse_nuclei_jsonl,
     "nikto": parse_nikto_txt,
-    "vulners": parse_nmap_xml, # The vulners script outputs Nmap XML
+    "vulners": parse_nmap_xml,
+    "enum4linux": parse_enum4linux,
 }
 
 def get_parser_for_tool(tool_name: str) -> Optional[Callable]:

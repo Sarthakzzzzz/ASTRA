@@ -42,5 +42,26 @@ venv.bak/
 .ipynb_checkpoints/
 *.pyc
 
-# ASTRA Output
+# Local Large Artifacts
+*.mp4
+*.pptx
+
+# ASTRA Output (Root and Subdir)
+output/
 orchestrator/output/
+
+# Node / Frontend
+node_modules/
+frontend/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.next/
+frontend/.next/
+out/
+dist/
+.DS_Store
+*.local
+coverage/
+

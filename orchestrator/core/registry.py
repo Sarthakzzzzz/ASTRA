@@ -16,7 +16,7 @@ SCANNERS = [
     # --------------------------------------------------------------------
     {
         "name": "nmap",
-        "cmd_template": "nmap -sS -sV -T4 -oX orchestrator/output/raw/{target}_nmap.xml {target}",
+        "cmd_template": "nmap -sT -sV -T4 -oX orchestrator/output/raw/{target}_nmap.xml {target}",
         "enabled": True, "requires_url": False, "mode": "active", "depends_on": []
     },
     {
@@ -91,11 +91,11 @@ SCANNERS = [
         "cmd_template": "ffuf -u {scan_target}/FUZZ -w /usr/share/wordlists/dirb/common.txt -o orchestrator/output/raw/{file_target}_ffuf.json -of json",
         "enabled": False, "requires_url": True, "mode": "active", "depends_on": ["nmap"]
     },
-    {
-        "name": "nikto",
-        "cmd_template": "nikto -h {scan_target} -o orchestrator/output/raw/{file_target}_nikto.txt",
-        "enabled": True, "requires_url": True, "mode": "active", "depends_on": ["nmap"]
-    },
+    #{
+    #    "name": "nikto",
+    #    "cmd_template": "nikto -h {scan_target} -o orchestrator/output/raw/{file_target}_nikto.txt",
+    #    "enabled": False, "requires_url": True, "mode": "active", "depends_on": ["nmap"]
+    #},
     {
         "name": "sslyze",
         "cmd_template": "sslyze --json_out=orchestrator/output/raw/{file_target}_sslyze.json {scan_target}",

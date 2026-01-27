@@ -10,9 +10,11 @@ A live demo of the ASTRA dashboard is available here:
 
 **[https://d97dfd578485.ngrok-free.app/](https://d97dfd578485.ngrok-free.app/)**
 
+([Note: Local setup required for full functionality described below])
+
 ---
 
-It features a sleek, real-time Streamlit dashboard and supports two distinct scanning modes:
+It features a futuristic, real-time **Next.js** dashboard and supports two distinct scanning modes:
 
 - **Dynamic Mode**: Leverages an AI Planning Agent to analyze findings and intelligently decide which tools to run next. It adapts its attack strategy in real-time based on discovered assets and vulnerabilities.
 - **Static Mode**: Executes a predictable, user-defined sequence of security tools.
@@ -21,17 +23,19 @@ It features a sleek, real-time Streamlit dashboard and supports two distinct sca
 
 ## 🚀 Key Features
 
-### 🧠 AI-Powered Dynamic Scanning
-- **AI Planning Agent**: Uses the Gemini 1.5 Flash API to analyze initial scan results and create a dynamic attack plan.
+### 🧠 Reasoning Engine & AI Planning
+- **Incremental Reasoning**: The AI engine analyzes findings *as they arrive* (Real-time), ensuring the dashboard reflects the current security posture instantly.
 - **Adaptive Strategy**: Intelligently chains tools based on open ports, identified services, and discovered vulnerabilities.
-- **Finding Enrichment**: Automatically enriches findings with risk levels and capabilities to inform the AI's decision-making process.
-- **ExploitDB Integration**: Searches ExploitDB for known exploits related to discovered services to prioritize high-risk targets.
+- **Strategic Insight**: The "Reasoning Engine" panel displays the AI's high-level thoughts, explaining *why* it chose a specific path.
 
-### 📺 Live Web Dashboard
-- **Real-time Log Streaming**: Monitor the scan's progress live.
-- **Live Discovery of Findings**: See vulnerabilities and results as they are found.
-- **Interactive Configuration**: Easily configure and launch scans from a user-friendly UI.
-- **Built with Streamlit**: A clean, modern, and responsive interface.
+### 🕸️ Interactive Attack Graph
+- **Visual Attack Paths**: Visualizes assets and findings as a dynamic node graph using ReactFlow.
+- **Path Analysis**: Automatically traces potential compromise paths from entry points to critical assets.
+
+### 📺 Live Next.js Dashboard
+- **Real-time Log Streaming**: Monitor the scan's progress live via Server-Sent Events (SSE).
+- **Custom Scanner Selection**: granular control over which tools to run (e.g., specific combinations of `nmap`, `nuclei`, etc.).
+- **Live Discovery**: Findings populate the graph and log window instantly.
 
 ### ⚡ Concurrent & Modular
 - **Concurrent Execution**: Runs multiple tools in parallel for faster and more efficient scanning.
@@ -42,11 +46,13 @@ It features a sleek, real-time Streamlit dashboard and supports two distinct sca
 ## 🔬 How Dynamic Mode Works
 
 1.  **Initial Scan**: ASTRA begins with a set of baseline enumeration tools (e.g., `nmap`, `whatweb`, `nuclei`).
-2.  **Finding Enrichment**: The raw output from these tools is parsed into a structured format and enriched with metadata, such as risk level and capability (e.g., `web_server`, `database_server`).
-3.  **AI Analysis**: The enriched findings are sent to the Gemini-powered AI Planning Agent.
-4.  **Tool Recommendation**: The AI agent analyzes the findings, reasons about potential attack vectors, and recommends the next best tools to run from its registry.
-5.  **Iterative Scanning**: ASTRA executes the recommended tools, collects the new findings, and repeats the cycle.
-6.  **Completion**: The scan concludes when the AI agent no longer recommends new tools, or the maximum number of iterations is reached.
+2.  **Incremental Parsing**: As tools finish, their output is immediately parsed and added to the centralized Graph.
+3.  **AI Analysis**: The Google ADK Agent analyzes the new findings.
+4.  **Strategic Loop**: 
+    -   The agent updates the "Reasoning Engine" display.
+    -   It recommends new, targeted scans (e.g., "Found port 80, run `nikto`").
+5.  **Execution**: The orchestrator executes the recommended tools automatically.
+6.  **Visualization**: The Attack Graph updates in real-time to show the growing network of assets and vulnerabilities.
 
 ---
 
@@ -55,104 +61,91 @@ It features a sleek, real-time Streamlit dashboard and supports two distinct sca
 ```
 ├── orchestrator
 │   ├── core
-│   │   ├── ai
-│   │   │   ├── attack_path.py
-│   │   │   ├── client.py
-│   │   │   ├── exploitdb.py
-│   │   │   └── planning_agent.py
-│   │   ├── extractors
-│   │   ├── __init__.py
-│   │   ├── ai_agent.py
-│   │   ├── capabilities.py
-│   │   ├── dependencies.py
-│   │   ├── engine.py
-│   │   ├── findings.py
-│   │   ├── graph.py
-│   │   ├── parsers.py
-│   │   ├── planner.py
-│   │   ├── registry.py
-│   │   ├── rules_engine.py
-│   │   ├── rules_loader.py
-│   │   ├── runner.py
-│   │   └── utils.py
-│   ├── __init__.py
-│   ├── main.py
-│   └── rules
-│       ├── auth.yaml
-│       ├── database.yaml
-│       ├── network.yaml
-│       ├── vulnerabilities.yaml
-│       └── web.yaml
-├── requirements.txt
-└── streamlit_app.py
+│   │   ├── engine.py       # Core logic for static/dynamic scanning
+│   │   ├── graph.py        # Graph database interface (NetworkX/Neo4j)
+│   │   ├── parsers.py      # Tool output parsers
+│   │   └── registry.py     # Tool definitions and commands
+│   ├── server.py           # FastAPI Backend
+│   └── main.py             # CLI Entrypoint
+├── frontend                # Next.js Application
+│   ├── src
+│   │   ├── components      # React Components (Sidebar, ExplainPanel, etc.)
+│   │   └── app             # Next.js Pages
+├── google_adk              # AI Integration
+│   ├── agent.py            # Gemini Agent Logic
+│   └── tools.py            # Agent Tool Definitions
+└── output                  # Raw Scan Results
 ```
 
 ---
 
 ## 🛠️ Tech Stack
 
--   **Backend**: Python 3.8+
--   **AI**: Google Gemini 1.5 Flash
--   **Frontend**: Streamlit
--   **Configuration**: YAML
--   **Core Libraries**: `google-generativeai`, `concurrent.futures`, `pathlib`
+-   **Backend**: Python 3.10+ (FastAPI, NetworkX, Google Generative AI)
+-   **Frontend**: Next.js 14, React, TailwindCSS, ReactFlow
+-   **AI**: Google Gemini 1.5 Flash (via Google ADK)
+-   **Graph**: NetworkX (In-memory) / Neo4j (Optional persistence)
 
 ---
 
-## 🧪 Getting Started
+##  Getting Started (Recommended: Docker)
+
+The easiest way to run ASTRA is with Docker, which automatically installs all security tools and dependencies.
 
 ### 1. Prerequisites
+-   **Docker** & **Docker Compose**
+-   **Google Gemini API Key**: Get it from [Google AI Studio](https://aistudio.google.com/app/apikey).
 
-ASTRA requires a Google Gemini API key and a set of common security tools.
-
-**A. Configure Gemini API Key:**
-
-1.  Obtain an API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
-2.  Create a `.env` file in the root of the project.
-3.  Add your API key to the `.env` file:
+### 2. Quick Start
+1.  Clone the repo:
+    ```bash
+    git clone https://github.com/Sarthakzzzzz/ASTRA.git
+    cd ASTRA
     ```
-    GEMINI_API_KEY=your_api_key_here
+2.  Set up your API Key:
+    ```bash
+    echo "GEMINI_API_KEY=your_actual_key_here" > .env
+    ```
+3.  Run with Docker:
+    ```bash
+    sudo docker compose up --build
     ```
 
-**B. Install Required Tools:**
+That's it! Access the dashboard at **http://localhost:3000**.
 
-ASTRA is a wrapper around popular CLI-based security tools. Make sure these tools are installed and available in your system's `PATH`.
+---
 
-For Debian/Ubuntu (e.g., Kali Linux):
+## ⚙️ Manual Installation (Advanced)
+
+If you prefer to run locally without Docker (e.g., on Kali Linux natively):
+
+### 1. Install Tools
 ```bash
 sudo apt update && sudo apt install -y nmap whatweb nuclei nikto wpscan joomscan enum4linux sqlmap
 ```
 
-### 2. Installation
-
-First, clone the repository and install the required Python libraries:
-
+### 2. Backend Setup
 ```bash
-git clone https://github.com/Sarthakzzzzz/ASTRA.git
-cd ASTRA
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Usage
-
-You can run ASTRA via the command line or through the user-friendly web interface.
-
-#### Command-Line Interface (CLI)
-
-Run a **dynamic scan** (recommended):
+### 3. Frontend Setup
 ```bash
-python3 orchestrator/main.py scanme.nmap.org --mode dynamic
+cd frontend
+npm install
 ```
 
-Run a **static scan** with specific tools:
+### 4. Run
+**Terminal 1 (Backend):**
 ```bash
-python3 orchestrator/main.py scanme.nmap.org --mode static --enable nmap,whatweb,nikto
+source .venv/bin/activate
+PYTHONPATH=. python orchestrator/server.py
 ```
 
-#### Web Dashboard
-
-Launch the Streamlit web application:
+**Terminal 2 (Frontend):**
 ```bash
-streamlit run streamlit_app.py
+cd frontend
+npm run dev
 ```
-This will open the ASTRA Dashboard in your web browser, where you can configure and run scans interactively.
