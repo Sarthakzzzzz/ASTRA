@@ -1,0 +1,42 @@
+[project]
+name = "astra"
+version = "0.2.0"
+description = "AI-Powered Vulnerability Scanning Orchestrator — adaptive multi-tool security scanner driven by Gemini 2.5 Flash Lite"
+readme = "README.md"
+requires-python = ">=3.13"
+license = { text = "MIT" }
+keywords = ["security", "vulnerability-scanner", "ai", "gemini", "nmap", "nuclei", "pentest", "orchestrator"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Information Technology",
+    "Topic :: Security",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "langchain>=1.2.10",
+    "langgraph-cli[inmem]>=0.4.12",
+    "google-generativeai>=0.8.0",
+    "chromadb>=0.5.0",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0.0",
+    "langchain-google-genai>=2.0.0",
+    "langgraph>=0.4.0",
+]
+
+[project.scripts]
+astra = "orchestrator.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["orchestrator", "rag"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]

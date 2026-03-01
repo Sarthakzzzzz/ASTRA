@@ -1,9 +1,10 @@
-# Security
+# ── Security ───────────────────────────────────────
 .env
 .env.local
 .env.*.local
+!.env.example          # always track the template
 
-# Python
+# ── Python ─────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
@@ -27,20 +28,41 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-.venv
+.venv/
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+.ipynb_checkpoints/
+*.pyc
+
+# ── Test Cache ──────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ── Editor / OS ─────────────────────────────────────
 .DS_Store
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
-.ipynb_checkpoints/
-*.pyc
 
-# ASTRA Output
+# ── ASTRA Runtime Output ────────────────────────────
+orchestrator/results/
 orchestrator/output/
+output/
+*.dot                  # generated attack path graphs
+*.log
+
+# ── Vector Store / RAG ─────────────────────────────
+chroma_db/
+*.chroma
+
+# ── LangGraph ──────────────────────────────────────
+.langgraph_api/
+
+# ── Frontend (not part of this repo) ───────────────
+frontend/
