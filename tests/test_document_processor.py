@@ -1,5 +1,5 @@
 import pytest
-from rag.research_agent.phase2_database.document_processor import DocumentProcessor
+from rag.threat_intel.database.doc_formatter import DocumentProcessor
 
 @pytest.fixture
 def processor():

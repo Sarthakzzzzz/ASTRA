@@ -2,7 +2,7 @@ import pytest
 import os
 import json
 from unittest.mock import MagicMock, patch
-from rag.research_agent.phase1_extraction.rag_extractor import ResearchAgentExtractor
+from rag.threat_intel.extractors.cve_enricher import ResearchAgentExtractor
 
 @pytest.fixture
 def extractor():
@@ -56,7 +56,7 @@ def test_get_nvd_details(mock_search, extractor):
     mock_search.return_value = [mock_item]
     
     # We test the tool directly (it's a static/global-ish tool in rag_extractor)
-    from rag.research_agent.phase1_extraction.rag_extractor import ResearchAgentExtractor
+    from rag.threat_intel.extractors.cve_enricher import ResearchAgentExtractor
     details = ResearchAgentExtractor.get_nvd_details.run("CVE-2021-44228")
     
     assert details["cve_id"] == "CVE-2021-44228"
@@ -66,7 +66,7 @@ def test_get_nvd_details(mock_search, extractor):
     args, kwargs = mock_search.call_args
     assert "key" in kwargs
 
-@patch("rag.research_agent.phase1_extraction.rag_extractor.TavilySearch")
+@patch("rag.threat_intel.extractors.cve_enricher.TavilySearch")
 def test_get_exploit_context(mock_tavily_class, extractor):
     # Mock the instance returned by the class constructor
     mock_instance = MagicMock()
@@ -75,7 +75,7 @@ def test_get_exploit_context(mock_tavily_class, extractor):
     
     # Set a dummy API key in the environment to satisfy the internal check
     with patch.dict(os.environ, {"TAVILY_API_KEY": "fake_key"}):
-        from rag.research_agent.phase1_extraction.rag_extractor import ResearchAgentExtractor
+        from rag.threat_intel.extractors.cve_enricher import ResearchAgentExtractor
         context = ResearchAgentExtractor.get_exploit_context.run("CVE-2021-44228")
     
     assert "GitHub" in context

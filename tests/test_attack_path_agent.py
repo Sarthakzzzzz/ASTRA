@@ -2,9 +2,9 @@ import pytest
 from unittest.mock import patch, MagicMock
 from langchain_core.documents import Document
 
-from rag.attack_path_agent.retriever import AttackPathRetriever
-from rag.attack_path_agent.prompt_builder import AttackPathPromptBuilder
-from rag.attack_path_agent.generator import AttackPathGenerator
+from rag.attack_chain.path_retriever import AttackPathRetriever
+from rag.attack_chain.prompt_builder import AttackPathPromptBuilder
+from rag.attack_chain.path_generator import AttackPathGenerator
 
 @pytest.fixture
 def mock_retriever():
@@ -17,7 +17,7 @@ def mock_retriever():
     )
     mock_neo4j_path = {"path": "(Asset {ip: '10.0.0.1'})-[:EXPOSES]->(Port {port_id: '80'})"}
 
-    from rag.research_agent.phase3_retrieval.retrieval_result import RetrievalResult, RankedFinding
+    from rag.threat_intel.search.search_models import RetrievalResult, RankedFinding
     mock_result = RetrievalResult(
         target_identifier="10.0.0.1",
         ranked_findings=[
@@ -33,7 +33,7 @@ def mock_retriever():
     )
 
     with patch(
-        "rag.attack_path_agent.retriever.ContextRetriever.retrieve_all",
+        "rag.attack_chain.path_retriever.ContextRetriever.retrieve_all",
         return_value=mock_result
     ):
         retriever = AttackPathRetriever()
@@ -82,7 +82,7 @@ def test_prompt_builder_synthesis():
     assert "A severe vulnerability." in prompt
     assert "CVE-1234" in prompt
 
-@patch("rag.attack_path_agent.generator.ChatGoogleGenerativeAI")
+@patch("rag.attack_chain.path_generator.ChatGoogleGenerativeAI")
 @patch.dict("os.environ", {"GOOGLE_API_KEY": "fake_key"})
 def test_generator_streaming(mock_gemini):
     # Mock the language model stream

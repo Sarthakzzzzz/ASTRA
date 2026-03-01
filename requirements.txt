@@ -26,7 +26,7 @@ google-api-core==2.29.0
 google-api-python-client==2.188.0
 google-auth==2.48.0rc0
 google-auth-httplib2==0.3.0
-google-generativeai==0.8.6
+google-genai==0.3.0
 googleapis-common-protos==1.72.0
 grpcio==1.76.0
 grpcio-status==1.71.2
@@ -116,3 +116,18 @@ watchfiles==1.1.1
 websocket-client==1.9.0
 websockets==16.0
 zipp==3.23.0
+langchain
+langchain-google-genai
+langchain-chroma
+nvdlib
+tavily-python
+pytest
+pytest-mock
+langchain-huggingface
+sentence-transformers
+langchain-huggingface
+sentence-transformers
+neo4j
+langchain-neo4j
+langgraph
+graphviz

@@ -1,4 +1,4 @@
-from rag.research_agent.phase2_database.graph_store import AttackGraphStore
+from rag.threat_intel.database.neo4j_store import AttackGraphStore
 
 def test_neo4j_insertion():
     print("Connecting to Neo4j...")

@@ -2,11 +2,11 @@ import pytest
 import shutil
 from unittest.mock import patch, MagicMock
 from langchain_core.documents import Document
-from rag.research_agent.phase2_database.vector_store import VulnerabilityVectorStore
+from rag.threat_intel.database.chroma_store import VulnerabilityVectorStore
 
 @pytest.fixture
 def mock_embeddings():
-    with patch("rag.research_agent.phase2_database.vector_store.HuggingFaceEmbeddings") as mock:
+    with patch("rag.threat_intel.database.chroma_store.HuggingFaceEmbeddings") as mock:
         yield mock
 
 @pytest.fixture
@@ -18,14 +18,14 @@ def temp_chroma_dir(tmp_path):
     if d.exists():
          shutil.rmtree(d)
 
-@patch("rag.research_agent.phase2_database.vector_store.Chroma")
+@patch("rag.threat_intel.database.chroma_store.Chroma")
 def test_vector_store_initialization(mock_chroma, mock_embeddings, temp_chroma_dir):
     store = VulnerabilityVectorStore(persist_directory=temp_chroma_dir)
     assert store.persist_directory == temp_chroma_dir
     mock_chroma.assert_called_once()
     mock_embeddings.assert_called_once()
 
-@patch("rag.research_agent.phase2_database.vector_store.Chroma")
+@patch("rag.threat_intel.database.chroma_store.Chroma")
 def test_vector_store_ingest(mock_chroma, mock_embeddings, temp_chroma_dir):
     # Setup mock Chrome instance
     mock_chroma_instance = MagicMock()
@@ -41,7 +41,7 @@ def test_vector_store_ingest(mock_chroma, mock_embeddings, temp_chroma_dir):
     store.ingest_documents(docs)
     mock_chroma_instance.add_documents.assert_called_once_with(docs)
 
-@patch("rag.research_agent.phase2_database.vector_store.Chroma")
+@patch("rag.threat_intel.database.chroma_store.Chroma")
 def test_vector_store_query(mock_chroma, mock_embeddings, temp_chroma_dir):
     mock_chroma_instance = MagicMock()
     # Mock search to return one dummy doc

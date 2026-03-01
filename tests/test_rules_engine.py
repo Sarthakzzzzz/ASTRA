@@ -8,8 +8,8 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from orchestrator.core.rules_loader import load_rules, get_rules_context_for_ai, match_rules_to_findings, format_matched_rules_for_ai
-from orchestrator.core.findings import StandardFinding
+from orchestrator.kernel.rule_interpreter import load_rules, get_rules_context_for_ai, match_rules_to_findings, format_matched_rules_for_ai
+from orchestrator.kernel.finding_models import StandardFinding
 
 print("=" * 80)
 print("ASTRA RULES-BASED DECISION ENGINE TEST")

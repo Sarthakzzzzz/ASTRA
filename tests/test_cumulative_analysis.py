@@ -10,7 +10,7 @@ import os
 # Add orchestrator to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from orchestrator.core.parsers import parse_nikto_txt
+from orchestrator.kernel.processing import parse_nikto_txt
 
 def test_nikto_parser():
     """Test nikto parser with sample output."""
@@ -73,15 +73,15 @@ def test_cumulative_analysis_config():
     """Verify cumulative analysis configuration."""
     print("\n[*] Verifying cumulative analysis configuration...")
     
-    from orchestrator.core.registry import SCANNERS
-    from orchestrator.core.ai.planning_agent import get_tool_list
+    from orchestrator.kernel.scanner_registry import SCANNERS
+    from orchestrator.kernel.brain.decision_agent import get_tool_list
     
     # Check nikto is in registry (regardless of whether it's enabled by default)
     nikto_found = any(s.get('name') == 'nikto' for s in SCANNERS)
     print(f"[+] Nikto in enabled scanners: {nikto_found}")
     
     # Check parser mapping
-    from orchestrator.core.parsers import PARSER_MAPPING
+    from orchestrator.kernel.processing import PARSER_MAPPING
     print(f"[+] Available parsers: {list(PARSER_MAPPING.keys())}")
     nikto_parser = 'nikto' in PARSER_MAPPING
     print(f"[+] Nikto parser registered: {nikto_parser}")

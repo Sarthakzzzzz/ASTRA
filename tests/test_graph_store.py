@@ -1,10 +1,10 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from rag.research_agent.phase2_database.graph_store import AttackGraphStore
+from rag.threat_intel.database.neo4j_store import AttackGraphStore
 
 @pytest.fixture
 def mock_neo4j():
-    with patch("rag.research_agent.phase2_database.graph_store.Neo4jGraph") as mock:
+    with patch("rag.threat_intel.database.neo4j_store.Neo4jGraph") as mock:
         yield mock
 
 def test_graph_store_initialization(mock_neo4j):
@@ -13,7 +13,7 @@ def test_graph_store_initialization(mock_neo4j):
     assert store.graph is not None
     mock_neo4j.assert_called_once()
 
-@patch("rag.research_agent.phase2_database.graph_store.Neo4jGraph")
+@patch("rag.threat_intel.database.neo4j_store.Neo4jGraph")
 def test_graph_store_failed_init(mock_neo4j):
     # Test failed init (e.g. Neo4j not running)
     mock_neo4j.side_effect = Exception("Connection Refused")

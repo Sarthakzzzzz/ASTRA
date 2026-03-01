@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch
-from rag.workflow.graph import build_workflow
-from rag.workflow.state import GraphState
+from rag.pipeline.graph import build_workflow
+from rag.pipeline.state import GraphState
 
 @pytest.fixture
 def mock_workflow_dependencies():
@@ -9,14 +9,14 @@ def mock_workflow_dependencies():
     Mocks out all the heavy external dependencies (LLMs, Databases, APIs)
     to ensure we are purely testing the LangGraph execution flow.
     """
-    with patch("rag.workflow.nodes.analyze_dynamic_scan") as MockAnalyzeDynamicScan, \
-         patch("rag.workflow.nodes.ResearchAgentExtractor") as MockExtractor, \
-         patch("rag.workflow.nodes.DocumentProcessor") as MockDocProcessor, \
-         patch("rag.workflow.nodes.VulnerabilityVectorStore") as MockVectorStore, \
-         patch("rag.workflow.nodes.AttackGraphStore") as MockGraphStore, \
-         patch("rag.workflow.nodes.AttackPathRetriever") as MockRetriever, \
-         patch("rag.workflow.nodes.AttackPathPromptBuilder") as MockPromptBuilder, \
-         patch("rag.workflow.nodes.AttackPathGenerator") as MockGenerator:
+    with patch("rag.pipeline.nodes.analyze_dynamic_scan") as MockAnalyzeDynamicScan, \
+         patch("rag.pipeline.nodes.ResearchAgentExtractor") as MockExtractor, \
+         patch("rag.pipeline.nodes.DocumentProcessor") as MockDocProcessor, \
+         patch("rag.pipeline.nodes.VulnerabilityVectorStore") as MockVectorStore, \
+         patch("rag.pipeline.nodes.AttackGraphStore") as MockGraphStore, \
+         patch("rag.pipeline.nodes.AttackPathRetriever") as MockRetriever, \
+         patch("rag.pipeline.nodes.AttackPathPromptBuilder") as MockPromptBuilder, \
+         patch("rag.pipeline.nodes.AttackPathGenerator") as MockGenerator:
         
         # 1. Mock Recommendation Output
         MockAnalyzeDynamicScan.return_value = [{"tool": "nmap", "command": "nmap -sV target"}]

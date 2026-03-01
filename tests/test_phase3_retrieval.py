@@ -5,9 +5,9 @@ ChromaDB and Neo4j are fully mocked — no real DB connections needed.
 from unittest.mock import MagicMock
 from langchain_core.documents import Document
 
-from rag.research_agent.phase3_retrieval.context_retriever import ContextRetriever
-from rag.research_agent.phase3_retrieval.ranker import Ranker
-from rag.research_agent.phase3_retrieval.retrieval_result import RankedFinding, RetrievalResult
+from rag.threat_intel.search.semantic_search import ContextRetriever
+from rag.threat_intel.search.result_ranker import Ranker
+from rag.threat_intel.search.search_models import RankedFinding, RetrievalResult
 
 
 

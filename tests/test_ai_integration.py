@@ -4,8 +4,8 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from orchestrator.core.findings import StandardFinding
-from orchestrator.core.ai.planning_agent import analyze_dynamic_scan
+from orchestrator.kernel.finding_models import StandardFinding
+from orchestrator.kernel.brain.decision_agent import analyze_dynamic_scan
 
 findings = [
     StandardFinding(

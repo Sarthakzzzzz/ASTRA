@@ -94,9 +94,9 @@ def scan_output_dir(tmp_path):
     Creates a temp directory with fake pre-written tool output files.
     The orchestrator parsers read from exactly these paths.
     """
-    raw_dir = tmp_path / "orchestrator" / "output" / "raw"
+    raw_dir = tmp_path / "orchestrator" / "results" / "raw"
     raw_dir.mkdir(parents=True)
-    out_dir  = tmp_path / "orchestrator" / "output"
+    out_dir  = tmp_path / "orchestrator" / "results"
 
     # Write fake outputs where the orchestrator expects them
     (raw_dir / "192.168.1.100_nmap.xml").write_text(FAKE_NMAP_XML)
@@ -150,13 +150,13 @@ def mock_external_services():
     mock_llm_instance.invoke.return_value = mock_llm_response
 
     with (
-        patch("rag.research_agent.phase2_database.vector_store.Chroma",
+        patch("rag.threat_intel.database.chroma_store.Chroma",
               return_value=mock_chroma_instance),
-        patch("rag.research_agent.phase2_database.vector_store.HuggingFaceEmbeddings"),
-        patch("rag.research_agent.phase2_database.document_processor.HuggingFaceEmbeddings"),
-        patch("rag.research_agent.phase2_database.graph_store.Neo4jGraph",
+        patch("rag.threat_intel.database.chroma_store.HuggingFaceEmbeddings"),
+        patch("rag.threat_intel.database.doc_formatter.HuggingFaceEmbeddings"),
+        patch("rag.threat_intel.database.neo4j_store.Neo4jGraph",
               return_value=mock_neo4j_instance),
-        patch("rag.attack_path_agent.generator.ChatGoogleGenerativeAI",
+        patch("rag.attack_chain.path_generator.ChatGoogleGenerativeAI",
               return_value=mock_llm_instance),
         patch.dict("os.environ", {"GOOGLE_API_KEY": "fake-test-key"}),
     ):
@@ -171,15 +171,16 @@ def mock_external_services():
 def _run_static_scan(target, enable, tmp_dir, mock_subprocess):
     """
     Runs the orchestrator in static mode, changing cwd to tmp_dir so that
-    'orchestrator/output/raw/' paths resolve correctly.
+    'orchestrator/results/raw/' paths resolve correctly.
     """
     import os as _os
-    from orchestrator.core import engine, utils
+    from orchestrator.kernel import orchestrator_engine as engine
+    from orchestrator.kernel import helpers as utils
 
     original_cwd = _os.getcwd()
     try:
         _os.chdir(tmp_dir)
-        _os.makedirs("orchestrator/output/raw", exist_ok=True)
+        _os.makedirs("orchestrator/results/raw", exist_ok=True)
 
         enabled = utils.sanitize_target(target)
         output_lines = list(engine.run_orchestrator(
@@ -199,13 +200,13 @@ def _run_dynamic_scan(target, enable, tmp_dir, mock_subprocess, mock_external_se
     Runs the orchestrator in dynamic mode (includes RAG + attack path).
     """
     import os as _os
-    from orchestrator.core import engine
+    from orchestrator.kernel import orchestrator_engine as engine
 
     original_cwd = _os.getcwd()
     try:
         _os.chdir(tmp_dir)
-        _os.makedirs("orchestrator/output/raw", exist_ok=True)
-        _os.makedirs("orchestrator/output", exist_ok=True)
+        _os.makedirs("orchestrator/results/raw", exist_ok=True)
+        _os.makedirs("orchestrator/results", exist_ok=True)
 
         output_lines = list(engine.run_orchestrator(
             primary_target=target,
@@ -225,24 +226,24 @@ class TestStaticScanPipeline:
 
     def test_nmap_parser_produces_findings(self, scan_output_dir):
         """Directly tests that our fake nmap XML is parsed into findings."""
-        from orchestrator.core.parsers import parse_nmap_xml
-        xml_path = str(scan_output_dir / "orchestrator/output/raw/192.168.1.100_nmap.xml")
+        from orchestrator.kernel.processing import parse_nmap_xml
+        xml_path = str(scan_output_dir / "orchestrator/results/raw/192.168.1.100_nmap.xml")
         findings = parse_nmap_xml(xml_path)
         ports = [f.port for f in findings if f.finding_type in ("open_port", "service", "web_service")]
         assert 80 in ports
         assert 22 in ports
 
     def test_nmap_parser_detects_web_service(self, scan_output_dir):
-        from orchestrator.core.parsers import parse_nmap_xml
-        xml_path = str(scan_output_dir / "orchestrator/output/raw/192.168.1.100_nmap.xml")
+        from orchestrator.kernel.processing import parse_nmap_xml
+        xml_path = str(scan_output_dir / "orchestrator/results/raw/192.168.1.100_nmap.xml")
         findings = parse_nmap_xml(xml_path)
         web = [f for f in findings if f.finding_type == "web_service"]
         assert len(web) >= 1
         assert any("192.168.1.100" in f.target for f in web)
 
     def test_nuclei_parser_produces_vulnerability_findings(self, scan_output_dir):
-        from orchestrator.core.parsers import parse_nuclei_jsonl
-        jsonl_path = str(scan_output_dir / "orchestrator/output/raw/http___192.168.1.100_nuclei.jsonl")
+        from orchestrator.kernel.processing import parse_nuclei_jsonl
+        jsonl_path = str(scan_output_dir / "orchestrator/results/raw/http___192.168.1.100_nuclei.jsonl")
         findings = parse_nuclei_jsonl(jsonl_path)
         assert len(findings) == 2
         crit = [f for f in findings if f.severity == "critical"]
@@ -250,16 +251,16 @@ class TestStaticScanPipeline:
         assert crit[0].finding_value == "cve-2021-41773"
 
     def test_nuclei_parser_maps_critical_to_exploit_risk(self, scan_output_dir):
-        from orchestrator.core.parsers import parse_nuclei_jsonl
-        jsonl_path = str(scan_output_dir / "orchestrator/output/raw/http___192.168.1.100_nuclei.jsonl")
+        from orchestrator.kernel.processing import parse_nuclei_jsonl
+        jsonl_path = str(scan_output_dir / "orchestrator/results/raw/http___192.168.1.100_nuclei.jsonl")
         findings = parse_nuclei_jsonl(jsonl_path)
         crit = [f for f in findings if f.severity == "critical"]
         assert crit[0].risk_level == "exploit"
         assert crit[0].capability == "exploitable_vulnerability"
 
     def test_whatweb_parser_detects_technologies(self, scan_output_dir):
-        from orchestrator.core.parsers import parse_whatweb_json
-        json_path = str(scan_output_dir / "orchestrator/output/raw/http___192.168.1.100_whatweb.json")
+        from orchestrator.kernel.processing import parse_whatweb_json
+        json_path = str(scan_output_dir / "orchestrator/results/raw/http___192.168.1.100_whatweb.json")
         findings = parse_whatweb_json(json_path)
         tech_names = [f.finding_value for f in findings]
         assert any("Apache" in t for t in tech_names)
@@ -280,9 +281,9 @@ class TestRagPipeline:
     """RAG enrichment: verify findings flow into ChromaDB and Neo4j."""
 
     def test_rag_enrichment_ingests_into_chroma(self, mock_external_services):
-        from orchestrator.core.findings import StandardFinding
-        from rag.workflow.nodes import rag_enrichment_node
-        from rag.workflow.state import GraphState
+        from orchestrator.kernel.finding_models import StandardFinding
+        from rag.pipeline.nodes import rag_enrichment_node
+        from rag.pipeline.state import GraphState
 
         findings = [
             StandardFinding(
@@ -315,8 +316,8 @@ class TestRagPipeline:
         mock_external_services["chroma"].add_documents.assert_called()
 
     def test_rag_enrichment_skips_when_no_findings(self, mock_external_services):
-        from rag.workflow.nodes import rag_enrichment_node
-        from rag.workflow.state import GraphState
+        from rag.pipeline.nodes import rag_enrichment_node
+        from rag.pipeline.state import GraphState
 
         state = GraphState(
             target_identifier="192.168.1.100",
@@ -336,8 +337,8 @@ class TestAttackPathPipeline:
     """Attack path: verify the Gemini LLM is called and DOT graph is returned."""
 
     def _make_state_with_findings(self):
-        from orchestrator.core.findings import StandardFinding
-        from rag.workflow.state import GraphState
+        from orchestrator.kernel.finding_models import StandardFinding
+        from rag.pipeline.state import GraphState
 
         findings = [
             StandardFinding(
@@ -363,13 +364,13 @@ class TestAttackPathPipeline:
         )
 
     def test_attack_path_node_calls_llm(self, mock_external_services):
-        from rag.workflow.nodes import attack_path_node
+        from rag.pipeline.nodes import attack_path_node
         state = self._make_state_with_findings()
         result = attack_path_node(state)
         mock_external_services["llm"].invoke.assert_called_once()
 
     def test_attack_path_node_returns_dot_graph(self, mock_external_services):
-        from rag.workflow.nodes import attack_path_node
+        from rag.pipeline.nodes import attack_path_node
         state = self._make_state_with_findings()
         result = attack_path_node(state)
         graph = result.get("attack_path_graph", "")
@@ -377,7 +378,7 @@ class TestAttackPathPipeline:
         assert "192.168.1.100" in graph
 
     def test_attack_path_node_no_error_in_result(self, mock_external_services):
-        from rag.workflow.nodes import attack_path_node
+        from rag.pipeline.nodes import attack_path_node
         state = self._make_state_with_findings()
         result = attack_path_node(state)
         assert result.get("error") is None
@@ -405,7 +406,7 @@ class TestFullDynamicPipeline:
         })
 
         with patch(
-            "orchestrator.core.ai.planning_agent.analyze_dynamic_scan",
+            "orchestrator.kernel.brain.decision_agent.analyze_dynamic_scan",
             return_value={"recommendations": []}
         ):
             output = _run_dynamic_scan(
@@ -427,11 +428,11 @@ class TestFullDynamicPipeline:
     ):
         """
         After a dynamic scan with findings, the attack path DOT file
-        must be saved to orchestrator/output/<target>_attack_path.dot.
+        must be saved to orchestrator/results/<target>_attack_path.dot.
         """
 
         with patch(
-            "orchestrator.core.ai.planning_agent.analyze_dynamic_scan",
+            "orchestrator.kernel.brain.decision_agent.analyze_dynamic_scan",
             return_value={"recommendations": []}
         ):
             _run_dynamic_scan(
@@ -442,7 +443,7 @@ class TestFullDynamicPipeline:
                 mock_external_services=mock_external_services,
             )
 
-        expected_dot = scan_output_dir / "orchestrator" / "output" / "192.168.1.100_attack_path.dot"
+        expected_dot = scan_output_dir / "orchestrator" / "results" / "192.168.1.100_attack_path.dot"
 
         if expected_dot.exists():
             content = expected_dot.read_text()

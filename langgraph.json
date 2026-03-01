@@ -1,0 +1,9 @@
+{
+  "dependencies": [
+    "."
+  ],
+  "graphs": {
+    "agent": "./rag/workflow/api.py:graph"
+  },
+  "env": ".env"
+}

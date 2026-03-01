@@ -1,4 +1,4 @@
-from orchestrator.core import engine
+from orchestrator.kernel import orchestrator_engine as engine
 
 # Execute real orchestrator for a very basic target, static mode first to see if it even works
 # Wait, let's run dynamic mode, with just whatweb to test the loop
