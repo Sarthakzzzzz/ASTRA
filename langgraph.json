@@ -3,7 +3,7 @@
     "."
   ],
   "graphs": {
-    "agent": "./rag/workflow/api.py:graph"
+    "agent": "./rag/pipeline/api.py:graph"
   },
   "env": ".env"
 }
