@@ -83,12 +83,12 @@ SCANNERS = [
     # --------------------------------------------------------------------
     {
         "name": "dirb",
-        "cmd_template": "dirb {scan_target} /usr/share/wordlists/dirb/common.txt -o orchestrator/output/raw/{file_target}_dirb.txt",
+        "cmd_template": "dirb {scan_target} /usr/share/dirb/wordlists/common.txt -o orchestrator/output/raw/{file_target}_dirb.txt",
         "enabled": False, "requires_url": True, "mode": "active", "depends_on": ["nmap"]
     },
     {
         "name": "ffuf",
-        "cmd_template": "ffuf -u {scan_target}/FUZZ -w /usr/share/wordlists/dirb/common.txt -o orchestrator/output/raw/{file_target}_ffuf.json -of json",
+        "cmd_template": "ffuf -u {scan_target}/FUZZ -w /usr/share/dirb/wordlists/common.txt -o orchestrator/output/raw/{file_target}_ffuf.json -of json",
         "enabled": False, "requires_url": True, "mode": "active", "depends_on": ["nmap"]
     },
     #{

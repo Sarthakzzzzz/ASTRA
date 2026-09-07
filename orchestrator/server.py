@@ -4,8 +4,9 @@ import sys
 import threading
 import queue
 import asyncio
+import secrets
 from typing import List, Optional
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI, BackgroundTasks, Depends, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -16,7 +17,18 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from orchestrator.core import engine, utils
 from orchestrator.core.graph import graph_db
 
-app = FastAPI(title="ASTRA API")
+app = FastAPI(
+    title="ASTRA API",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+)
+API_TOKEN = os.getenv("ASTRA_API_TOKEN", "")
+
+
+def require_api_token(x_astra_token: Optional[str] = Header(default=None)):
+    if not API_TOKEN or not x_astra_token or not secrets.compare_digest(x_astra_token, API_TOKEN):
+        raise HTTPException(status_code=401, detail="Valid ASTRA API token required")
 
 # Global log queue for streaming
 log_queue = queue.Queue()
@@ -24,8 +36,8 @@ log_queue = queue.Queue()
 # Enable CORS for the frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, restrict this
-    allow_credentials=True,
+    allow_origins=[os.getenv("FRONTEND_ORIGIN", "http://localhost:8501")],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -39,7 +51,7 @@ class ScanRequest(BaseModel):
 async def root():
     return {"status": "ASTRA Core AI Online"}
 
-@app.get("/graph")
+@app.get("/graph", dependencies=[Depends(require_api_token)])
 async def get_graph():
     """
     Returns the graph in a format compatible with ReactFlow (Bramhastra UI).
@@ -106,7 +118,7 @@ async def event_generator():
             yield f": keepalive\n\n"
             await asyncio.sleep(0.5)
 
-@app.get("/api/scan/stream")
+@app.get("/api/scan/stream", dependencies=[Depends(require_api_token)])
 async def stream_logs():
     """
     Server-Sent Events endpoint for streaming scan logs.
@@ -120,7 +132,7 @@ async def stream_logs():
         }
     )
 
-@app.post("/api/scan")
+@app.post("/api/scan", dependencies=[Depends(require_api_token)])
 async def start_scan(request: ScanRequest, background_tasks: BackgroundTasks):
     """
     Initiates a security scan.
@@ -140,7 +152,7 @@ class ChatRequest(BaseModel):
     logs: List[str]
     question: str
 
-@app.post("/ai/explain")
+@app.post("/ai/explain", dependencies=[Depends(require_api_token)])
 async def ai_explain(request: ChatRequest):
     """
     Endpoint for the AI Chat interface to explain logs or answer questions.
@@ -149,12 +161,12 @@ async def ai_explain(request: ChatRequest):
     answer = await ai_agent.answer_question_async(logs_context, request.question)
     return {"answer": answer}
 
-@app.get("/ai/reasoning")
+@app.get("/ai/reasoning", dependencies=[Depends(require_api_token)])
 async def get_reasoning():
     from orchestrator.core import state
     return {"reasoning": state.get_reasoning()}
 
-@app.get("/api/scanners")
+@app.get("/api/scanners", dependencies=[Depends(require_api_token)])
 async def get_scanners():
     from orchestrator.core import registry
     return [

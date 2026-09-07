@@ -169,36 +169,22 @@ def parse_whatweb_json(file_path: str, target_context: Optional[str] = None) -> 
         with open(file_path, 'r') as f:
             content = f.read().strip()
         
-        # Handle multiple JSON arrays in the file (from multiple whatweb runs)
-        # Split by ]\n[ which indicates multiple arrays
+        # WhatWeb may concatenate arrays from repeated runs inside an outer array.
+        # Decode every JSON object so both valid arrays and that output form work.
         json_objects = []
-        if ']\n[' in content:
-            # Multiple arrays - process each separately
-            parts = content.split(']\n[')
-            for i, part in enumerate(parts):
-                if i == 0:
-                    part = part.lstrip('[')
-                else:
-                    part = '[' + part
-                if i < len(parts) - 1:
-                    part = part + ']'
-                else:
-                    part = part.rstrip(']')
-                try:
-                    data = json.loads('[' + part + ']') if not (part.startswith('[') and part.endswith(']')) else json.loads(part)
-                    if isinstance(data, list):
-                        json_objects.extend(data)
-                    else:
-                        json_objects.append(data)
-                except:
-                    pass
-        else:
-            # Single JSON array
-            data = json.loads(content)
-            if isinstance(data, list):
-                json_objects = data
-            else:
-                json_objects = [data]
+        decoder = json.JSONDecoder()
+        offset = 0
+        while True:
+            object_start = content.find('{', offset)
+            if object_start == -1:
+                break
+            try:
+                data, offset = decoder.raw_decode(content, object_start)
+            except json.JSONDecodeError:
+                offset = object_start + 1
+                continue
+            if isinstance(data, dict):
+                json_objects.append(data)
         
         # Map known technologies to capabilities and risk levels
         tech_to_capability = {
@@ -216,8 +202,12 @@ def parse_whatweb_json(file_path: str, target_context: Optional[str] = None) -> 
         
         seen_findings = set()
         for result in json_objects:
+            if not isinstance(result, dict):
+                continue
             target = result.get("target", target_context)
             plugins = result.get("plugins", {})
+            if not isinstance(plugins, dict):
+                continue
             for tech_name, details in plugins.items():
                 # Skip duplicate findings from multiple runs
                 finding_key = (tech_name, target)
@@ -237,7 +227,7 @@ def parse_whatweb_json(file_path: str, target_context: Optional[str] = None) -> 
                     finding_value=tech_name,
                     capability=capability,
                     risk_level=risk_level,
-                    details={"version": details.get("version", [])}
+                    details={"version": details.get("version", []) if isinstance(details, dict) else details}
                 ))
     except (json.JSONDecodeError, IOError) as e:
         print(f"[!] Error parsing WhatWeb JSON file {file_path}: {e}")

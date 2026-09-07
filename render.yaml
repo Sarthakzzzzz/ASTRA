@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: astra-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile.backend
+    dockerContext: .
+    healthCheckPath: /
+    envVars:
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: openai/gpt-4o-mini
+      - key: ASTRA_API_TOKEN
+        generateValue: true
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: NVD_API_KEY
+        sync: false

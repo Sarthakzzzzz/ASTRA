@@ -4,6 +4,7 @@ Includes helpers for target validation, command construction, and file path gene
 """
 import re
 import shlex
+from urllib.parse import urlparse
 from typing import Dict, List
 
 def log_error(message: str):
@@ -36,6 +37,16 @@ def ensure_http_scheme(target: str) -> str:
             return f"https://{target}"
         return f"http://{target}"
     return target
+
+
+def ensure_host_port(target: str, default_port: int = 443) -> str:
+    """Converts a URL or host into the host:port format expected by SSLyze."""
+    parsed = urlparse(target if '://' in target else f'//{target}', scheme='http')
+    host = parsed.hostname
+    if not host:
+        return target
+    port = parsed.port or (443 if parsed.scheme == 'https' else 80)
+    return f"{host}:{port or default_port}"
 
 def get_output_filepath(scanner_config: Dict, display_target: str, primary_target: str) -> str:
     """
@@ -74,7 +85,11 @@ def command_builder(scanner: Dict, display_target: str, primary_target: str, out
         return []
 
     # 1. Replace all placeholders with their actual values
-    cmd_str = template.replace("{scan_target}", display_target)\
+    scan_target = display_target
+    if scanner.get("name") == "sslyze":
+        scan_target = ensure_host_port(display_target)
+
+    cmd_str = template.replace("{scan_target}", scan_target)\
                       .replace("{target}", primary_target)
 
     # 2. Find the generic output path in the template (e.g., 'orchestrator/output/raw/{file_target}_wpscan.json')

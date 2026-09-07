@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile.backend
     container_name: astra-core
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     env_file:
       - .env
     volumes:
@@ -16,15 +16,17 @@ services:
       - PYTHONUNBUFFERED=1
     restart: unless-stopped
 
-  frontend:
+  streamlit:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: Dockerfile.streamlit
     container_name: astra-ui
     ports:
-      - "3000:3000"
+      - "127.0.0.1:8501:8501"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - BACKEND_URL=http://orchestrator:8000
+      - ASTRA_API_TOKEN=${ASTRA_API_TOKEN}
+      - APP_PASSWORD=${APP_PASSWORD}
     depends_on:
       - orchestrator
     restart: unless-stopped

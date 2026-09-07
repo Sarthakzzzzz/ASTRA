@@ -10,17 +10,18 @@ try:
 except ImportError:
     pass
 
-# Ensure API key is set for the library to detect, or pass it explicitly if supported
-if not os.environ.get("GOOGLE_API_KEY"):
-    print("[!] Warning: GOOGLE_API_KEY not found in environment. Agent may fail.")
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+if not OPENROUTER_API_KEY:
+    print("[!] Warning: OPENROUTER_API_KEY not found in environment. Agent may fail.")
 
-# Configure ADK to use API keys directly (not Vertex AI)
-os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "False"
+# Pass key to LiteLLM via its OpenAI-compatible env var
+os.environ["OPENAI_API_KEY"] = OPENROUTER_API_KEY
 
 try:
     from google.adk.agents import Agent
     from google.adk.sessions import InMemorySessionService
     from google.adk.runners import Runner
+    from google.adk.models.lite_llm import LiteLlm
     import google.genai.types as types
 except ImportError:
     # Fallback for development/testing if package missing
@@ -49,6 +50,7 @@ except ImportError:
         class Part:
              def __init__(self, text): pass
 
+from google_adk.client import get_openrouter_model
 from google_adk.tools import ScanTools
 from orchestrator.core.registry import TOOL_BINARIES
 from orchestrator.core.rules_loader import get_rules_context_for_ai, match_rules_to_findings, format_matched_rules_for_ai
@@ -100,16 +102,23 @@ class ScanAgent:
     """
     Wrapper around Google ADK Agent to provide synchronous interface for the Orchestrator.
     """
-    def __init__(self, model_name: str = "gemini-2.5-flash"):
+    def __init__(self, model_name: str = None):
+        model_name = model_name or get_openrouter_model()
         self.model_name = model_name
         self.app_name = "astra_security_scan"
         self.user_id = "astra_user"
         self.session_id = "current_scan_session"
-        
+
+        litellm_model = LiteLlm(
+            model=f"openai/{model_name}" if "/" not in model_name else model_name,
+            api_base="https://openrouter.ai/api/v1",
+            api_key=OPENROUTER_API_KEY,
+        )
+
         # Initialize ADK components
         self.adk_agent = Agent(
             name="security_consultant",
-            model=model_name,
+            model=litellm_model,
             description="Expert security consultant and penetration tester.",
             instruction=(
                 "You are an expert penetration tester assisting with a security scan. "
@@ -129,7 +138,11 @@ class ScanAgent:
             app_name=self.app_name,
             session_service=self.session_service
         )
+        self._sync_runner = asyncio.Runner()
         self.latest_reasoning = "Waiting for scan data..."
+
+    def _run_sync(self, coroutine):
+        return self._sync_runner.run(coroutine)
 
     async def _run_analysis_async(self, prompt: str) -> str:
         # Ensure session exists
@@ -157,7 +170,6 @@ class ScanAgent:
             if hasattr(event, 'is_final_response') and event.is_final_response():
                 if event.content and event.content.parts:
                     final_response_text = event.content.parts[0].text
-                break
             # Handle mock event which might not have is_final_response method if not mocked correctly
             # But our mock has it.
                 
@@ -194,7 +206,7 @@ class ScanAgent:
         )
         
         try:
-            return asyncio.run(self._run_analysis_async(prompt))
+            return self._run_sync(self._run_analysis_async(prompt))
         except Exception as e:
             logger.error(f"Agent execution failed: {e}")
             return f"Agent error: {e}"
@@ -270,7 +282,7 @@ class ScanAgent:
         
         try:
             logger.info("Requesting AI recommendations from Google ADK...")
-            response = asyncio.run(self._run_analysis_async(prompt))
+            response = self._run_sync(self._run_analysis_async(prompt))
             
             # Try to parse JSON from response
             import json
@@ -322,7 +334,7 @@ class ScanAgent:
         Synchronous wrapper.
         """
         try:
-            return asyncio.run(self.answer_question_async(context, question))
+            return self._run_sync(self.answer_question_async(context, question))
         except Exception as e:
             logger.error(f"Chat failed: {e}")
             return f"Agent error: {e}"
